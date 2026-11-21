@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 机械臂模型不入库（third_party/ 在 .gitignore 里），CI 里按需拉取
+      - name: Fetch Franka model (sparse)
+        run: |
+          git clone --filter=blob:none --sparse --depth 1 \
+            https://github.com/google-deepmind/mujoco_menagerie third_party/mujoco_menagerie
+          cd third_party/mujoco_menagerie
+          git sparse-checkout set franka_emika_panda
+          cd ../..
+          python scripts/vendor_panda.py
+
+      - name: Lint
+        run: ruff check src tests scripts eval
+
+      - name: Unit tests
+        run: pytest
+
+      # 规则模式不依赖网络和 API key，CI 里可以确定性复现
+      - name: Eval (rule mode, 46 cases)
+        run: python eval/run_eval.py
+
+      - name: Compare report (rule only, no key in CI)
+        run: python eval/compare.py --rule-only
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: |
+            eval/results/summary_rule.md
+            eval/results/results_rule.csv
+            eval/results/comparison.md
+          if-no-files-found: warn
