@@ -1,0 +1,13 @@
+# 运行仿真与 Agent 链路的最小依赖
+mujoco>=3.1,<4
+numpy>=1.24
+pydantic>=2.5
+Pillow>=10.0
+
+# LLM 解析路径（没有 key 时可缺省，规则回退不依赖它）
+openai>=1.30
+python-dotenv>=1.0
+
+# 开发/评测
+pytest>=8.0
+ruff>=0.5

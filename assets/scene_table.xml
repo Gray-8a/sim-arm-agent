@@ -1,0 +1,70 @@
+<mujoco model="sim-arm-agent table scene">
+  <!-- 桌面场景：Franka Panda + 工作台 + 两个可操作方块 + 两个放置目标点。
+       panda_local.xml 是 menagerie panda.xml 的本地副本（见 scripts/vendor_panda.py），
+       只改了 meshdir 并删掉了上游 keyframe。
+
+       注意：台面顶必须正好在 z=0（Panda 基座在原点），所以台体往下做厚，
+       地板再下移到台体底面，避免两个面共面产生 z-fighting。 -->
+  <include file="panda_local.xml"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="140" elevation="-28"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.25 0.35 0.45" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.16 0.20 0.25" rgb2="0.10 0.13 0.17"
+      markrgb="0.35 0.42 0.50" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="8 8" reflectance="0.05"/>
+    <material name="mat_table" rgba="0.52 0.47 0.42 1"/>
+    <material name="mat_table_top" rgba="0.60 0.56 0.50 1"/>
+    <material name="mat_red" rgba="0.86 0.16 0.16 1"/>
+    <material name="mat_blue" rgba="0.16 0.36 0.86 1"/>
+    <material name="mat_tray" rgba="0.12 0.12 0.13 1"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0.5 0 2.2" diffuse="0.7 0.7 0.7"/>
+    <light pos="0 1.5 1.5" dir="-0.2 -0.6 -0.8" directional="true" diffuse="0.35 0.35 0.35"/>
+    <geom name="floor" type="plane" pos="0 0 -0.4" size="0 0 0.1" material="groundplane"/>
+
+    <!-- 工作台：顶面 z=0，往下做 40cm 厚 -->
+    <geom name="table_body" type="box" pos="0.42 0 -0.21" size="0.42 0.42 0.19"
+      material="mat_table" contype="1" conaffinity="1" friction="1.0 0.005 0.0001"/>
+    <!-- 台面薄板，略高出 1mm，给一点层次感又不至于和台体冲突 -->
+    <geom name="table_top" type="box" pos="0.42 0 -0.0005" size="0.42 0.42 0.0015"
+      material="mat_table_top" contype="1" conaffinity="1" friction="1.0 0.005 0.0001"/>
+
+    <!-- 红色方块 -->
+    <body name="red_block" pos="0.50 -0.13 0.026">
+      <freejoint name="red_block_free"/>
+      <geom name="red_block_geom" type="box" size="0.026 0.026 0.026"
+        material="mat_red" mass="0.08" friction="1.4 0.01 0.001"/>
+    </body>
+
+    <!-- 蓝色方块 -->
+    <body name="blue_block" pos="0.50 0.13 0.026">
+      <freejoint name="blue_block_free"/>
+      <geom name="blue_block_geom" type="box" size="0.026 0.026 0.026"
+        material="mat_blue" mass="0.08" friction="1.4 0.01 0.001"/>
+    </body>
+
+    <!-- 放置目标：左右两个薄托盘。site 是逻辑目标点，几何体只是视觉参考 -->
+    <body name="tray_left" pos="0.34 -0.30 0">
+      <geom name="tray_left_geom" type="box" pos="0 0 0.005" size="0.075 0.075 0.005"
+        material="mat_tray" contype="1" conaffinity="1" friction="1.0 0.005 0.0001"/>
+      <site name="tray_left_site" pos="0 0 0.010" size="0.010" rgba="0.2 0.9 0.2 0.8"/>
+    </body>
+
+    <body name="tray_right" pos="0.34 0.30 0">
+      <geom name="tray_right_geom" type="box" pos="0 0 0.005" size="0.075 0.075 0.005"
+        material="mat_tray" contype="1" conaffinity="1" friction="1.0 0.005 0.0001"/>
+      <site name="tray_right_site" pos="0 0 0.010" size="0.010" rgba="0.9 0.9 0.2 0.8"/>
+    </body>
+  </worldbody>
+
+  <!-- 抓取的 equality weld 方案已放弃（会和手指接触约束对冲出 NaN），改在 env.py 里做
+       运动学附着。这里不再定义 weld，避免留下无效约束误导后续维护者。 -->
+</mujoco>

@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# 运行产物
+logs/
+artifacts/*.png
+artifacts/*.gif
+artifacts/*.json
+eval/results/
+
+# 环境
+.env
+.env.local
+
+# 上游模型（按需 sparse clone，不入库）
+third_party/
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store
+
+# MuJoCo ������־
+MUJOCO_LOG.TXT
