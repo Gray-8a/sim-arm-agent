@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+.venv-vla/
 venv/
 *.egg-info/
 
@@ -12,7 +13,7 @@ artifacts/*.gif
 artifacts/*.json
 eval/results/
 
-# 鐜
+# Environment
 .env
 .env.local
 
@@ -24,5 +25,5 @@ third_party/
 .idea/
 .DS_Store
 
-# MuJoCo 运行日志
+# MuJoCo 杩愯鏃ュ織
 MUJOCO_LOG.TXT
