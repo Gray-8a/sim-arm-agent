@@ -72,6 +72,43 @@ def record_complete(result) -> bool:
     return has_status and has_reason and has_trace
 
 
+def evaluate(cases: list[dict], mode: str, env: ArmEnv, *, verbose: bool = True) -> list[dict]:
+    """跑一批用例，返回逐条结果行。run_eval 和 compare 共用这一份执行逻辑。"""
+    approver = AutoRejectApprover()
+    rows: list[dict] = []
+
+    for i, case in enumerate(cases, 1):
+        env.reset()
+        agent = ArmAgent(env=env, logger=None, approver=approver, parse_mode=mode)
+        t0 = time.perf_counter()
+        try:
+            result = agent.run(case["text"])
+        except Exception as exc:  # noqa: BLE001
+            print(f"[{i}/{len(cases)}] {case['id']} EXCEPTION {type(exc).__name__}: {exc}")
+            continue
+        dt = (time.perf_counter() - t0) * 1000
+
+        row = {
+            "id": case["id"],
+            "tier": case["tier"],
+            "text": case["text"],
+            "status": result.status,
+            "action": triple(result)[0],
+            "object": triple(result)[1],
+            "target": triple(result)[2],
+            "parse_ok": parse_ok(case, result),
+            "intercepted": result.status in ("blocked", "rejected"),
+            "record_complete": record_complete(result),
+            "detail": result.detail.get("reason", "").split(":")[0],
+            "latency_ms": round(dt, 1),
+        }
+        rows.append(row)
+        if verbose:
+            print(f"[{i}/{len(cases)}] {case['id']:4s} {case['tier']:7s} status={result.status:8s} {case['text']}")
+
+    return rows
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", default="rule", choices=["rule", "llm", "auto"])
@@ -84,43 +121,13 @@ def main() -> None:
         cases = cases[: args.limit]
 
     env = ArmEnv()
-    approver = AutoRejectApprover()
-    rows: list[dict] = []
-
     t_all = time.perf_counter()
-    for i, case in enumerate(cases, 1):
-        env.reset()
-        agent = ArmAgent(env=env, logger=None, approver=approver, parse_mode=args.mode)
-        t0 = time.perf_counter()
-        try:
-            result = agent.run(case["text"])
-        except Exception as exc:  # noqa: BLE001
-            result = None
-            print(f"[{i}/{len(cases)}] {case['id']} EXCEPTION {type(exc).__name__}: {exc}")
-        dt = (time.perf_counter() - t0) * 1000
-
-        if result is None:
-            continue
-
-        truncated = result.detail.get("reason", "").split(":")[0]
-        row = {
-            "id": case["id"],
-            "tier": case["tier"],
-            "text": case["text"],
-            "status": result.status,
-            "action": triple(result)[0],
-            "object": triple(result)[1],
-            "target": triple(result)[2],
-            "parse_ok": parse_ok(case, result),
-            "intercepted": result.status in ("blocked", "rejected"),
-            "record_complete": record_complete(result),
-            "detail": truncated,
-            "latency_ms": round(dt, 1),
-        }
-        rows.append(row)
-        print(f"[{i}/{len(cases)}] {case['id']:4s} {case['tier']:7s} status={result.status:8s} {case['text']}")
-
+    rows = evaluate(cases, args.mode, env)
     elapsed = time.perf_counter() - t_all
+
+    if not rows:
+        print("没有产生任何结果行，退出")
+        return
 
     # ---------- 汇总 ----------
     by_tier: dict[str, list[dict]] = defaultdict(list)

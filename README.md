@@ -64,7 +64,21 @@ export PYTHONPATH=src
 python scripts/run_agent.py "把红色方块放到左边托盘" --yes
 ```
 
-Windows PowerShell 用 `$env:PYTHONPATH="src"`。
+Windows PowerShell 等价写法：
+
+```powershell
+$env:PYTHONPATH = "src"
+git clone --filter=blob:none --sparse --depth 1 https://github.com/google-deepmind/mujoco_menagerie third_party/mujoco_menagerie
+Set-Location third_party/mujoco_menagerie
+git sparse-checkout set franka_emika_panda
+Set-Location ../..
+python scripts/vendor_panda.py
+python scripts/run_agent.py "把红色方块放到左边托盘" --yes
+```
+
+> **路径必须是纯 ASCII。** MuJoCo 的 C 层用窄字符 `fopen`，Windows 上中文目录会直接报
+> `Error opening file`（`GetShortPathNameW` 也不一定救得了，8.3 短名可能被禁用）。
+> 如果项目放在中文路径下，用 `mklink /J` 建一个 ASCII 路径的 junction 再从那进。
 
 可选：接真实 LLM
 
@@ -120,7 +134,19 @@ python eval/run_eval.py --mode llm   # LLM 解析（需要 key）
 
 真正的证据是 tricky 层：那 6 条是我故意按规则解析器的弱点设计的，结果 5/6 被拦。剩下的 1 条（多步指令）至今没有被正确处理。
 
-要得到有意义的泛化数字，需要用 LLM 模式跑同一批集，并且把指令集扩充到别人写的说法。这两件事都在 Roadmap 里。
+要得到有意义的泛化数字，需要用 LLM 模式跑同一批集，并且把指令集扩充到别人写的说法。
+
+### 双模式对照
+
+`eval/compare.py` 用同一批指令分别跑规则和 LLM，输出逐条行为差异：
+
+```bash
+python eval/compare.py             # 需要 DEEPSEEK_API_KEY
+python eval/compare.py --rule-only # 无 key 时只跑规则，列出待对比位点
+```
+
+没有 key 时脚本会明确跳过 LLM 模式并在报告里标注，**不会用假数据充数**。CI 跑的是 `--rule-only`，因为 CI 不该持有 API key。
+
 
 ---
 
@@ -195,7 +221,9 @@ sim-arm-agent/
 │   └── dev/             # 探测与失败实验的脚本，保留作为过程证据
 ├── eval/
 │   ├── instructions.jsonl   # 46 条分层指令集
-│   └── run_eval.py
+│   ├── run_eval.py          # 单模式评测
+│   └── compare.py           # 规则 vs LLM 对照
+├── .github/workflows/ci.yml # lint + pytest + 规则模式评测（不持有 API key）
 └── tests/                   # 34 个单测，不依赖网络和 API key
 ```
 
@@ -205,9 +233,10 @@ sim-arm-agent/
 
 按优先级：
 
-1. **LLM 模式跑同一批评测集**，和规则模式做对照，把"协同偏差"这件事量化掉。
+1. **LLM 模式跑同一批评测集**。脚本已就绪（`eval/compare.py`），缺的是一次带真实 key 的运行。跑完把 `comparison.md` 贴回这一节。
 2. **用 SmolVLA 替换枚举解析**：让它从图像直接输出末端增量，然后对比"可审计性"的损失。这是理解 VLA 和 LLM 分工的最短路径。
 3. **否定/多步/相对位置的 parser 重写**：把 tricky 层的 1/6 补上，规则换成 LLM + 自校验。
+4. **把指令集扩到别人写的说法**。当前 46 条全部出自我手，这是协同偏差的根源。
 
 ---
 
