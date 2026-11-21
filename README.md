@@ -1,5 +1,7 @@
 # sim-arm-agent
 
+[![ci](https://github.com/Gray-8a/sim-arm-agent/actions/workflows/ci.yaml/badge.svg)](https://github.com/Gray-8a/sim-arm-agent/actions/workflows/ci.yaml)
+
 **把 LLM/Agent 的工作流接到仿真机械臂上，重点不是机械臂动得多准，而是「不可回滚的执行」怎么做到可拦截、可审批、可审计。**
 
 An LLM agent that drives a simulated Franka arm, with a four-layer safety gate, human-in-the-loop approval, and auditable JSONL logs.
